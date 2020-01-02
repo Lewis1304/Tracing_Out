@@ -7,22 +7,23 @@ from qiskit.tools.monitor import job_monitor
 def Initial_circuit(theta):
     # Build the initial-sub-circuit
 
+    #Controlled -iY Gate
     U_small = np.kron(np.diag([0,1]),[[0,-1],[1,0]]) + np.diag([1,1,0,0])
     cU = Operator(U_small)
 
     initial_sub_q = QuantumRegister(2)
     initial_sub_circ = QuantumCircuit(initial_sub_q, name='initial_sub_circ')
+
     initial_sub_circ.ry(2 * theta,initial_sub_q[0])
     initial_sub_circ.unitary(cU, [initial_sub_q[1],initial_sub_q[0]], label='cU')
     initial_sub_circ.ry(-2 * theta,initial_sub_q[0])
     initial_sub_circ.cry(np.pi / 2,initial_sub_q[0],initial_sub_q[1])
+
     return initial_sub_circ.to_instruction()
 
 #Controlled-Controlled -iY Gate, ccz * ccx = cc(-iy)
 def custom_gate():
 
-    X = np.array([[0,1],[1,0]])
-    Y = np.array([[0,-1j],[1j,0]])
     Z = np.array([[1,0],[0,-1]])
     I = np.eye(2)
 
@@ -43,32 +44,20 @@ def custom_gate():
     circuit.cx(qubits[0],qubits[1])
     circuit.unitary(c_v, [qubits[2],qubits[0]], label='c_v')
 
+    #ccx gate
     circuit.ccx(qubits[0],qubits[1],qubits[2])
 
     return circuit.to_instruction()
-
-#Controlled-Controlled Ry(pi / 2) Gate
-def custom_reset():
-    qubits = QuantumRegister(3)
-    circuit = QuantumCircuit(qubits)
-
-    circuit.cry(np.pi/4,qubits[1],qubits[2])
-    circuit.cx(qubits[0],qubits[1])
-    circuit.cry(-np.pi/4,qubits[1],qubits[2])
-    circuit.cx(qubits[0],qubits[1])
-    circuit.cry(np.pi/4,qubits[0],qubits[2])
-    return circuit.to_instruction()
-
 
 def Subsequent_circuit(theta):
     # Build subsequent sub-circuit
     sub_q = QuantumRegister(3)
     sub_circ = QuantumCircuit(sub_q, name='sub_circ')
-    sub_circ.cry(2 * theta,sub_q[0],sub_q[1])
+    sub_circ.ry(2 * theta,sub_q[1])
     sub_circ.append(custom_gate(),[sub_q[0],sub_q[1],sub_q[2]])
-    sub_circ.cry(-2 * theta,sub_q[0],sub_q[1])
+    sub_circ.ry(-2 * theta,sub_q[1])
     if N > 2:
-        sub_circ.append(custom_reset(),[sub_q[0],sub_q[1],sub_q[2]])
+        sub_circ.cry(np.pi/2,sub_q[1],sub_q[2]) #reset gate
     return sub_circ.to_instruction()
 
 def experiment_QC(theta,N,name):
@@ -92,14 +81,14 @@ def experiment_QC(theta,N,name):
     qcomp = provider.get_backend(name)
 
     """
-    simulator = Aer.get_backend('qasm_simulator') 
+    simulator = Aer.get_backend('qasm_simulator')
     job = execute(circ, backend = simulator,shots = 8192)
     result = job.result()
     success_states = ['0'+'0'*(N-i) + '1'*i for i in range(N)] + ['1'+'0'*(N-i) + '1'*i for i in range(N)]
     print(np.sum([result.get_counts(circ)[i] for i in success_states])/8192)
     print(result.get_counts(circ))
     """
-    
+
     #stats about the circuit implemented on the actual Quantum Computer- Different to theoretical circuit!:
     t_circ = transpile(circ, backend=qcomp)
     print('Circuit Depth: ',t_circ.depth())
@@ -117,8 +106,6 @@ def experiment_QC(theta,N,name):
 
     return Success_fidelity
 
-
-
 N = 2
 names = ['ibmq_5_yorktown','ibmq_essex','ibmq_ourense','ibmq_vigo','ibmq_burlington']
 fidelities = []
@@ -128,4 +115,4 @@ for i in names:
     print(i)
     print(round)
 print(fidelities)
-#fidelities_results = [0.5941162109375, 0.5848388671875, 0.689697265625, 0.7054443359375, 0.5665283203125]
+#fidelities_results = [0.6309814453125, 0.5810546875, 0.7349853515625, 0.7135009765625, 0.601806640625]
