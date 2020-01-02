@@ -23,7 +23,7 @@ def PEA_circuit_initial():
     return initial_sub_circ.to_instruction()
 
 def PEA_circuit_conditional():
-    cond_PEA_qubits = QuantumRegister(t + N + 1) #register, state, or. Assuming 1 or qubit ONLY
+    cond_PEA_qubits = QuantumRegister(t + N + 1) #register, state, or. Assuming 1 or qubit maybe generalised in other funcs.
     cond_PEA_circ = QuantumCircuit(cond_PEA_qubits,name = 'cond PEA circ')
 
     cond_PEA_circ.h(cond_PEA_qubits[:t])
@@ -31,7 +31,7 @@ def PEA_circuit_conditional():
 
     if N ==1:
         for i,q in enumerate(cond_PEA_qubits[:t][::-1]):
-            cond_PEA_circ.append(Single_Controlled_Controlled_Unitary_Circuit(i), [cond_PEA_qubits[t:-1],q,cond_PEA_qubits[-1]]) #or, register, state
+            cond_PEA_circ.append(Single_Controlled_Controlled_Unitary_Circuit(i), [cond_PEA_qubits[-1],q,cond_PEA_qubits[t:-1]]) #or, register, state
     if N ==2:
         for i,q in enumerate(cond_PEA_qubits[:t][::-1]):
             cond_PEA_circ.append(Two_Controlled_Controlled_Unitary(i),[cond_PEA_qubits[-1],q,*cond_PEA_qubits[t:-1]])
@@ -172,8 +172,7 @@ def experiment_QC(p,t):
             circuit.append(or_gate(i),[*register_qubits[(i-1)*t:i*t], *or_qubits[(i - 1) * (t - 1): i * (t-1)]])
             circuit.append(PEA_circuit_conditional(),[*register_qubits[i*t:(i+1)*t],*state_qubits,or_qubits[i * (t-1) -1]])
     circuit.measure_all()
-
-
+    """
     IBMQ.load_account()
     provider = IBMQ.get_provider('ibm-q')
     qcomp = provider.get_backend('ibmq_16_melbourne')
@@ -187,7 +186,8 @@ def experiment_QC(p,t):
     simulator = Aer.get_backend('qasm_simulator')
     job = execute(circuit, backend = simulator,shots = 8192)
     result = job.result()
-    """
+
+
     result_dictionary = result.get_counts(circuit)
     list_of_states = list(result_dictionary.keys())
     if N == 1:
@@ -199,8 +199,10 @@ def experiment_QC(p,t):
 
 
 #phases are [0,0.75] and [0,0.25,0.5,0.75] for the 1 and 2 qubit cases respectively.
-N = 1 #1 or 2 qubit Hamiltonian
+N = 2 #1 or 2 qubit Hamiltonian
 t=2 #number of precision qubits
 p=2 #number of rounds
 fidelity = experiment_QC(p,t)
 print('Success Fidelity: ',fidelity)
+#Success Fidelity:  0.595458984375 (N=1, p=2) should be 0.75
+#Success Fidelity:  0.3209228515625 (N=2, p=2) should be ~0.46
