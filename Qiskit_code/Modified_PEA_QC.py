@@ -16,14 +16,14 @@ def PEA_circuit_initial():
 
     if N ==2:
         for i,q in enumerate(initial_sub_q[:t][::-1]):
-            initial_sub_circ.append(Two_Controlled_Unitary(i),[q,*initial_sub_q[-N:]])
+            initial_sub_circ.append(Two_Controlled_Unitary(i),[q,*initial_sub_q[-N:]]) #Control then Target
 
     qft_dagger(initial_sub_circ,initial_sub_q[:-N],t)
 
     return initial_sub_circ.to_instruction()
 
 def PEA_circuit_conditional():
-    cond_PEA_qubits = QuantumRegister(t + N + 1) #register, state, or
+    cond_PEA_qubits = QuantumRegister(t + N + 1) #register, state, or. Assuming 1 or qubit ONLY
     cond_PEA_circ = QuantumCircuit(cond_PEA_qubits,name = 'cond PEA circ')
 
     cond_PEA_circ.h(cond_PEA_qubits[:t])
@@ -31,7 +31,7 @@ def PEA_circuit_conditional():
 
     if N ==1:
         for i,q in enumerate(cond_PEA_qubits[:t][::-1]):
-            cond_PEA_circ.append(Single_Controlled_Controlled_Unitary_Circuit(i), [cond_PEA_qubits[t:-1],q,cond_PEA_qubits[-1]])
+            cond_PEA_circ.append(Single_Controlled_Controlled_Unitary_Circuit(i), [cond_PEA_qubits[t:-1],q,cond_PEA_qubits[-1]]) #or, register, state
     if N ==2:
         for i,q in enumerate(cond_PEA_qubits[:t][::-1]):
             cond_PEA_circ.append(Two_Controlled_Controlled_Unitary(i),[cond_PEA_qubits[-1],q,*cond_PEA_qubits[t:-1]])
@@ -41,6 +41,13 @@ def PEA_circuit_conditional():
     return cond_PEA_circ.to_instruction()
 
 ###########################################################################################
+#Control U(1) gate
+def Single_Controlled_Unitary(power):
+    phases = [0,0.75]
+    U = np.kron( np.diag([0,1]),np.diag([np.exp(2 * np.pi * 1.0j * k) for k in phases]) )
+    U += np.diag([1,1,0,0])
+    return Operator(U**(2**power))
+
 #Control-Control U(1) gate
  #Fixed for phase = .11 = 0.75
 def Single_Controlled_Controlled_Unitary_Circuit(i):
@@ -108,7 +115,7 @@ def Two_Controlled_Controlled_Unitary(i):
     q = QuantumRegister(4)
     qc = QuantumCircuit(q)
 
-    qc.append(controlled_V(i),[q[1],q[2],q[3]]) #control then target
+    qc.append(controlled_V(i),[q[1],q[2],q[3]])
     qc.cx(q[0],q[1])
     qc.append(controlled_V_dagger(i),[q[1],q[2],q[3]])
     qc.cx(q[0],q[1])
@@ -116,12 +123,6 @@ def Two_Controlled_Controlled_Unitary(i):
 
     return qc.to_instruction()
 ###################################################################################################
-
-def Single_Controlled_Unitary(power):
-    phases = [0,0.25,0.5,0.75]
-    U = np.kron( np.diag([0,1]),np.diag([np.exp(2 * np.pi * 1.0j * k) for k in phases]) )
-    U += np.diag([1,1,0,0])
-    return Operator(U**(2**power))
 
 def qft_dagger(circ,q,n):
     qubits = list(q)
@@ -170,13 +171,12 @@ def experiment_QC(p,t):
         for i in range(1,p):
             circuit.append(or_gate(i),[*register_qubits[(i-1)*t:i*t], *or_qubits[(i - 1) * (t - 1): i * (t-1)]])
             circuit.append(PEA_circuit_conditional(),[*register_qubits[i*t:(i+1)*t],*state_qubits,or_qubits[i * (t-1) -1]])
-
     circuit.measure_all()
 
 
     IBMQ.load_account()
     provider = IBMQ.get_provider('ibm-q')
-    qcomp = provider.get_backend('ibmq_burlington')
+    qcomp = provider.get_backend('ibmq_16_melbourne')
 
     job = execute(circuit, backend = qcomp,shots = 8192)
     from qiskit.tools.monitor import job_monitor
@@ -190,13 +190,17 @@ def experiment_QC(p,t):
     """
     result_dictionary = result.get_counts(circuit)
     list_of_states = list(result_dictionary.keys())
-    Success_fidelity = np.sum( [result_dictionary[i] for i in list_of_states if i[0] == '0' and i[1] == '0']) / 8192 #We only care about the overlap between the output state and groundstate (|0>)
-    print(Success_fidelity)
+    if N == 1:
+        Success_fidelity = np.sum( [result_dictionary[i] for i in list_of_states if i[0] == '0']) / 8192 #We only care about the overlap between the output state and groundstate (|0>)
+        return Success_fidelity
+    if N == 2:
+        Success_fidelity = np.sum( [result_dictionary[i] for i in list_of_states if i[0] == '0' and i[1] == '0']) / 8192 #We only care about the overlap between the output state and groundstate (|00>)
+        return Success_fidelity
 
-    return Success_fidelity
 
-N = 1 #1 or 2 qubit Hamiltonian
 #phases are [0,0.75] and [0,0.25,0.5,0.75] for the 1 and 2 qubit cases respectively.
+N = 1 #1 or 2 qubit Hamiltonian
 t=2 #number of precision qubits
-p=1 #number of rounds
-experiment_QC(p,t)
+p=2 #number of rounds
+fidelity = experiment_QC(p,t)
+print('Success Fidelity: ',fidelity)
