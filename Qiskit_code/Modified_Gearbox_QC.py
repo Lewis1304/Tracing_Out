@@ -116,3 +116,4 @@ for i in names:
     print(round)
 print(fidelities)
 #fidelities_results = [0.6309814453125, 0.5810546875, 0.7349853515625, 0.7135009765625, 0.601806640625]
+#should be 0.75
