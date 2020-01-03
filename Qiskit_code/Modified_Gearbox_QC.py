@@ -21,31 +21,23 @@ def Initial_circuit(theta):
 
     return initial_sub_circ.to_instruction()
 
-#Controlled-Controlled -iY Gate, ccz * ccx = cc(-iy)
+#Controlled-Controlled -iY Gate, V^2 = -iY
 def custom_gate():
 
-    Z = np.array([[1,0],[0,-1]])
-    I = np.eye(2)
+    V = 1/np.sqrt(2) * np.array([[1,-1],[1,1]])
+    c_v_array = np.kron(np.diag([0,1]),V) + np.diag([1,1,0,0])
+    CV = Operator(c_v_array)
+
+    CV_dagger = Operator(c_v_array.conj().T)
 
     qubits = QuantumRegister(3)
     circuit = QuantumCircuit(qubits)
 
-    #ccz gate
-    V = (1-1j)*(I + 1j*Z)*0.5
-    c_v_array = np.kron(np.diag([0,1]),V) + np.diag([1,1,0,0])
-    c_v = Operator(c_v_array)
-
-    c_v_array_dagger = np.kron(np.diag([0,1]),V.conj().T) + np.diag([1,1,0,0])
-    c_v_dagger = Operator(c_v_array_dagger)
-
-    circuit.unitary(c_v, [qubits[2],qubits[1]], label='c_v')
+    circuit.unitary(CV, [qubits[2],qubits[1]])
     circuit.cx(qubits[0],qubits[1])
-    circuit.unitary(c_v_dagger, [qubits[2],qubits[1]], label='c_v_dagger')
+    circuit.unitary(CV_dagger, [qubits[2],qubits[1]], label='c_v_dagger')
     circuit.cx(qubits[0],qubits[1])
-    circuit.unitary(c_v, [qubits[2],qubits[0]], label='c_v')
-
-    #ccx gate
-    circuit.ccx(qubits[0],qubits[1],qubits[2])
+    circuit.unitary(CV, [qubits[2],qubits[0]], label='c_v')
 
     return circuit.to_instruction()
 
@@ -106,7 +98,8 @@ def experiment_QC(theta,N,name):
 
     return Success_fidelity
 
-N = 2
+
+N = 2 #number of rounds
 names = ['ibmq_5_yorktown','ibmq_essex','ibmq_ourense','ibmq_vigo','ibmq_burlington']
 fidelities = []
 for i in names:
