@@ -172,7 +172,7 @@ def experiment_QC(p,t):
             circuit.append(or_gate(i),[*register_qubits[(i-1)*t:i*t], *or_qubits[(i - 1) * (t - 1): i * (t-1)]])
             circuit.append(PEA_circuit_conditional(),[*register_qubits[i*t:(i+1)*t],*state_qubits,or_qubits[i * (t-1) -1]])
     circuit.measure_all()
-    """
+    
     IBMQ.load_account()
     provider = IBMQ.get_provider('ibm-q')
     qcomp = provider.get_backend('ibmq_16_melbourne')
@@ -186,7 +186,7 @@ def experiment_QC(p,t):
     simulator = Aer.get_backend('qasm_simulator')
     job = execute(circuit, backend = simulator,shots = 8192)
     result = job.result()
-
+    """
 
     result_dictionary = result.get_counts(circuit)
     list_of_states = list(result_dictionary.keys())
