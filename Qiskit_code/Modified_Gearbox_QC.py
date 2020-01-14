@@ -57,8 +57,7 @@ def experiment_QC(theta,N,name,measure_type):
 
     register_qubits = QuantumRegister(N)
     state_qubit = QuantumRegister(1)
-    c = ClassicalRegister(1)
-    circ = QuantumCircuit(register_qubits,state_qubit,c)
+    circ = QuantumCircuit(register_qubits,state_qubit)
 
     RUS_initial = Initial_circuit(theta)
     RUS = Subsequent_circuit(theta)
@@ -68,16 +67,21 @@ def experiment_QC(theta,N,name,measure_type):
     for i in range(1,N):
         circ.append(RUS, [register_qubits[i-1],register_qubits[i],state_qubit])
 
-    if measure_type == 'x':
-        circ.h(state_qubit)
-    elif measure_type == 'y':
-        circ.sdg(state_qubit)
-        circ.h(state_qubit)
-
-    circ.measure(state_qubit,c)
-    #circ.measure_all() #don't forget to input ClassicalRegister to change
 
     if name == 'qasm_simulator':
+
+        c = ClassicalRegister(1)
+        meas = QuantumCircuit(state_qubit,c)
+
+        if measure_type == 'x':
+            meas.h(state_qubit)
+        elif measure_type == 'y':
+            meas.sdg(state_qubit)
+            meas.h(state_qubit)
+
+        meas.measure(state_qubit,c)
+        circ += meas
+
         simulator = Aer.get_backend(name)
         job = execute(circ, backend = simulator,shots = 8192)
         result = job.result()
@@ -92,6 +96,7 @@ def experiment_QC(theta,N,name,measure_type):
         return probs['0'] -  probs['1']
 
     if name == 'qasm_simulator_fid':
+        circ.measure_all()
         simulator = Aer.get_backend('qasm_simulator')
         job = execute(circ, backend = simulator,shots = 8192)
         result = job.result()
@@ -102,6 +107,19 @@ def experiment_QC(theta,N,name,measure_type):
         return Success_fidelity
 
     else:
+
+        c = ClassicalRegister(1)
+        meas = QuantumCircuit(state_qubit,c)
+
+        if measure_type == 'x':
+            meas.h(state_qubit)
+        elif measure_type == 'y':
+            meas.sdg(state_qubit)
+            meas.h(state_qubit)
+
+        meas.measure(state_qubit,c)
+        circ += meas
+
         #Simulate Circuit
         IBMQ.load_account()
         provider = IBMQ.get_provider('ibm-q')
@@ -126,11 +144,6 @@ def experiment_QC(theta,N,name,measure_type):
             else:
                 probs[output] = 0
         return probs['0'] -  probs['1']
-        """
-        success_states = ['0'+'0'*(N-i) + '1'*i for i in range(N)] + ['1'+'0'*(N-i) + '1'*i for i in range(N)]
-        Success_fidelity = np.sum([result_dictionary[i] for i in success_states])/8192
-        return Success_fidelity
-        """
 
 
 acquiring_simulation_data = False
@@ -174,7 +187,7 @@ if acquiring_physical_data == True:
 acquiring_physical_data_fid = False
 if acquiring_physical_data_fid == True:
     x = np.linspace(0,np.pi/2,5)
-    with open('data_physical_fid_2.csv', 'w') as csvfile:
+    with open('data_physical_fid.csv', 'w') as csvfile:
 
         writer = csv.writer(csvfile, delimiter="\t")
         writer.writerow(['Theta', 'Rounds', 'Fidelity'])
