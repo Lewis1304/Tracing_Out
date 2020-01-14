@@ -83,3 +83,7 @@ def post_processing_fidelity(): #do for angle pi/4
     #plt.plot(range(1,9),fidelity_rounds)
     #plt.plot(range(1,9),[theoretical_fidelity(data[192][0],n) for n in range(1,9)])
     #plt.show()
+
+theory = [theoretical_fidelity(np.pi/4,n) for n in range(1,9)]
+print(theory)
+post_processing_fidelity()
