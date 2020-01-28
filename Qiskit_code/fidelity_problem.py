@@ -39,55 +39,87 @@ def experiment_QC(theta,N,measure_type):
 
     #Initial Round
     circ.ry(2 * theta,register_qubits[0])
-    circ.unitary(cU, [state_qubit[0],register_qubits[0]], label='cU') #target then control
+    circ.unitary(cU, [state_qubit,register_qubits[0]], label='cU') #target then control
     circ.ry(-2 * theta,register_qubits[0])
 
     #Subsequent Rounds
     for i in range(1,N):
-        circ.cry(np.pi/2,register_qubits[i-1],state_qubit[0]) #reset gate
+        circ.cry(np.pi/2,register_qubits[i-1],*state_qubit) #reset gate
         circ.ry(2 * theta,register_qubits[i])
-        circ.append(custom_gate(),[register_qubits[i-1],register_qubits[i],state_qubit[0]]) #control then target
+        circ.append(custom_gate(),[register_qubits[i-1],register_qubits[i],state_qubit]) #control then target
         circ.ry(-2 * theta,register_qubits[i])
 
     #Pauli Measurements
     if measure_type == 'x':
-        circ.h(state_qubit[0])
+        circ.h(state_qubit)
     elif measure_type == 'y':
-        circ.sdg(state_qubit[0])
-        circ.h(state_qubit[0])
-
-    circ.measure(state_qubit[0],c)
+        circ.sdg(state_qubit)
+        circ.h(state_qubit)
+    elif measure_type == 'z':
+        circ.iden(state_qubit)
+    circ.measure(state_qubit,c)
 
     #Simulate Circuit
     simulator = Aer.get_backend('qasm_simulator')
-    job = execute(circ, backend = simulator,shots = 8192)
+    job = execute(circ, backend = simulator,shots = 10000)
     result = job.result()
     result_dictionary = result.get_counts(circ)
 
     probs = {}
     for output in ['0','1']:
-        probs[output] = result_dictionary[output]/8192
+        if output in result_dictionary:
+            probs[output] = result_dictionary[output]
+        else:
+            probs[output] = 0
+    return (probs['0'] -  probs['1']) / 10000
 
-    return probs['0'] - probs['1']
+def testing_activation_function():
+    x = np.linspace(0,np.pi/2,25)
+    for r in range(1,16):
+        results = []
+        for i in x:
+            X_exp = experiment_QC(i,r,'x')
+            Y_exp = experiment_QC(i,r,'y')
+            Z_exp = experiment_QC(i,r,'z')
+            print(X_exp**2 + Y_exp**2 + Z_exp**2)
+            results.append(np.arctan2(X_exp,Z_exp)/2)
+        plt.plot(x,results,label = 'Round: {}'.format(r))
+        print('{} / 15'.format(r))
+    plt.legend()
+    plt.show()
 
-def computed_fidelity(theta,computed_list):
+def computed_fidelity(theta,X_exp,Y_exp,Z_exp):
     q_theta = np.arctan(np.tan(theta)**2)
+    computed_list = [X_exp,Y_exp,Z_exp]
     expected_list = [np.sin(q_theta),0,np.cos(q_theta)] # <x>,<y>,<z>
-    return np.sum([(expected_list[i]-computed_list[i])**2 for i in range(3)])
+
+    fid = 0
+    for j,i in zip(['<x>','<y>','<z>'],range(3)):
+        #print( 'Expected {}: {}'.format(j,expected_list[i]))
+        #print( 'Computed {}: {}'.format(j,computed_list[i]))
+        fid += (expected_list[i] - computed_list[i])**2
+    return fid
 
 def analytic_fidelity(theta,n_rounds):
-    return 1-(np.cos(theta)**4 + np.sin(theta)**4)**n_rounds
+    p = np.cos(theta)**4 + np.sin(theta)**4
+    return 1 - (1- p)**n_rounds
 
-theta = np.pi/4
-results = []
-for r in range(1,8):
-    X_exp = experiment_QC(theta,r,'x')
-    Y_exp = experiment_QC(theta,r,'y')
-    Z_exp = experiment_QC(theta,r,'z')
-    computed_list = [X_exp, Y_exp, Z_exp]
-    results.append(1-computed_fidelity(theta,computed_list))
+def testing_fidelity():
+    theta = np.pi/4
+    x = range(1,7)
+    results = []
+    for i in x:
+        print('Round {} / 15'.format(i))
+        X_exp = experiment_QC(theta,i,'x')
+        Y_exp = experiment_QC(theta,i,'y')
+        Z_exp = experiment_QC(theta,i,'z')
+        print(X_exp**2 + Y_exp**2 + Z_exp**2)
 
-plt.plot(range(1,8),results,label = 'Simulation')
-plt.plot(range(1,8),[analytic_fidelity(theta,n) for n in range(1,8)],label = 'Analytic')
-plt.legend()
-plt.show()
+        results.append(1-computed_fidelity(theta,X_exp,Y_exp,Z_exp))
+
+    plt.plot(x,results,label = 'Simulation')
+    plt.plot(x,[analytic_fidelity(theta,n) for n in x],label = 'Analytic')
+    plt.legend()
+    plt.show()
+
+testing_fidelity()
