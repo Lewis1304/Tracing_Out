@@ -139,11 +139,10 @@ def testing_fidelity():
 
         comp = computed_fidelity(theta,X_exp,Y_exp,Z_exp)
         an = analytic_fidelity(theta, i)
-        print(comp, an)
         results.append(comp)
 
     plt.plot(x,results,label = 'Simulation')
-    plt.plot(x,[analytic_fidelity(theta,n) for n in x],label = 'Analytic')
+    plt.plot(x,[analytic_fidelity(theta,n) for n in x], linestyle='dashed', label = 'Analytic')
     plt.legend()
     plt.show()
 
