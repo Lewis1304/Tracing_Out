@@ -4,8 +4,6 @@ import numpy as np
 from qiskit.quantum_info.operators import Operator
 from qiskit.tools.monitor import job_monitor
 import csv
-import matplotlib as mpl
-mpl.style.use('pub_fast')
 
 #Controlled-Controlled -iY Gate, V^2 = -iY
 def custom_gate():
@@ -100,7 +98,7 @@ def p(theta):
     return np.cos(theta)**4+ np.sin(theta)**4
 
 def analytic_evs(theta, N):
-    """analytic expectation value
+    """analytic expectation values
     """
     return (1-(1-p(theta))**N)*np.array([2*np.cos(theta)**2*np.sin(theta)**2, 0, np.cos(theta)**4-np.sin(theta)**4])/p(theta)+(1-p(theta))**N*np.array([0, 0, 1])
 
