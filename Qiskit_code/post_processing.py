@@ -4,86 +4,134 @@ import numpy as np
 from qiskit.quantum_info.operators import Operator
 from qiskit.tools.monitor import job_monitor
 import csv
-
-def theoretical_angle(theta):
-    return np.arctan(np.tan(theta)**2)
+from numpy import linalg as LA
+import matplotlib.ticker as mticker
 
 def post_processing_angle():
     data = np.genfromtxt('data_sim.csv', delimiter="\t",skip_header=1)
-    data_physical = np.genfromtxt('data_physical.csv',delimiter="\t",skip_header=1)
+    data_physical = np.genfromtxt('data_physical2.csv',delimiter="\t",skip_header=1)
     x = np.linspace(0,np.pi/2,25)
     x_physical = np.linspace(0,np.pi/2,5)
 
-    for i,k in zip([0,1,2,4],['.','^','x','*']):
+    for i,k in zip([0,1,2,5],['.','^','x','*']):
         i_rounds = [data[j] for j in range(i,len(data),8)]
         arctan_xz = [np.arctan2(j[2],j[4])/2 for j in i_rounds[:-2]] #factor of two since every angle is multiplied by 2 on the bloch sphere
 
-        if i == 0:#these conditions just shift the result to another solution which fits the curve
-            arctan_xz += [(np.arctan(j[2]/j[4]) + np.pi)/2 for j in i_rounds[-2:]]
-        if i ==3:
-            arctan_xz += [(np.arctan(j[2]/j[4]) + np.pi)/2 for j in i_rounds[-2:]]
-        if i == 1:
-            arctan_xz += [(np.arctan2(j[2],j[4]))/2 for j in i_rounds[-2:-1]] + [(np.arctan(j[2]/j[4])+np.pi)/2 for j in i_rounds[-1:]]
-        if i ==4:
-            arctan_xz += [(np.arctan2(j[2],j[4]))/2 for j in i_rounds[-2:]]
-        if i ==2:
-            arctan_xz += [(np.arctan2(j[2],j[4]))/2 for j in i_rounds[-2:]]
 
+        if i == 0 :#these conditions just shift the result to another solution which fits the curve
+            arctan_xz += [(np.arctan(j[2]/j[4]) + np.pi)/2 for j in i_rounds[-2:]]
+            plt.plot(x,arctan_xz,label = '${} \ round$'.format(i+1),linewidth = 0,marker = k)
+        elif i == 2:
+            arctan_xz += [(np.arctan(j[2]/j[4]) + np.pi)/2 for j in i_rounds[-2:]]
+            plt.plot(x,arctan_xz,label = '${} \ rounds$'.format(i+1),linewidth = 0,marker = k)
+        else:
+            arctan_xz += [np.arctan2(j[2],j[4])/2 for j in i_rounds[-2:]]
+            plt.plot(x,arctan_xz,label = '${} \ rounds$'.format(i+1),linewidth = 0,marker = k)
 
-        plt.plot(x,arctan_xz,label = '${} \ rounds$'.format(i+1),linewidth = 0,marker = k)
 
     for i in range(3):
         i_rounds = [data_physical[j] for j in range(i,len(data_physical),3)]
-        arccos_z = [np.arccos(j[4])/2 for j in i_rounds]
         arctan_xz = [np.arctan2(j[2],j[4])/2 for j in i_rounds]
-        #plt.plot(x_physical,arccos_z,linewidth = 0, marker = 'o',markersize = 10,fillstyle = 'none',label = '${} \ rounds \ QC$'.format(i+1))
-        plt.plot(x_physical,arctan_xz,linewidth = 0, marker = 'o',markersize = 10,fillstyle = 'none',label = '${} \ rounds \ QC$'.format(i+1))
+        if i == 0:
+            plt.plot(x_physical,arctan_xz,linewidth = 0, marker = 'o',markersize = 10,fillstyle = 'none',label = '${} \ round \ QC$'.format(i+1))
+        else:
+            plt.plot(x_physical,arctan_xz,linewidth = 0, marker = 'o',markersize = 10,fillstyle = 'none',label = '${} \ rounds \ QC$'.format(i+1))
 
-    plt.ylabel('$arctan(<X>/<Z>)$')
+
+    plt.ylabel('$arctan(\\frac{\\langle x \\rangle}{\\langle z \\rangle})$',labelpad=-4)
     plt.xlabel('$\\theta \ (radians)$',labelpad=-2)
 
     positions = (0,np.pi/8,np.pi/4, 3*np.pi/8,np.pi/2)
     labels = ("$0$", "$\\frac{\\pi}{8}$", "$\\frac{\\pi}{4}$","$\\frac{3\\pi}{8}$","$\\frac{\\pi}{2}$")
-    plt.xticks(positions, labels,fontsize = 15)
-    plt.plot(x,[theoretical_angle(theta) for theta in x],label = '$arctan(tan^2(\\theta))$',color = 'k')
+    plt.xticks(positions, labels,fontsize = 12)
+
+    plt.plot(x,[q(theta) for theta in x],label = '$arctan(tan^2(\\theta))$',color = 'k')
     plt.legend()
-    plt.savefig('Perceptron_angle.pdf')
+    #plt.savefig('Perceptron_angle.pdf')
+
     plt.show()
 
 
-def expectation_value(theta,measure_type):
-    q_theta = theoretical_angle(theta)
-    state = np.array([np.cos(q_theta),np.sin(q_theta)]).T
+def q(theta):
+    return np.arctan(np.tan(theta)**2)
 
-    if measure_type == 'x':
-        X = np.array([[0,1],[1,0]])
-        return state @ X @ state
+def p(theta):
+    return np.cos(theta)**4+ np.sin(theta)**4
 
-    if measure_type == 'y':
-        Y = np.array([[0,-1j],[1j,0]])
-        return state @ Y @ state
+def analytic_evs(theta, N):
+    """analytic expectation values
+    """
+    return (1-(1-p(theta))**N)*np.array([2*np.cos(theta)**2*np.sin(theta)**2, 0, np.cos(theta)**4-np.sin(theta)**4])/p(theta)+(1-p(theta))**N*np.array([0, 0, 1])
 
-    if measure_type == 'z':
-        Z = np.array([[1,0],[0,-1]])
-        return state @ Z @ state
+def testing_expectation_values():
+    x = np.linspace(0,np.pi/2,25)
+    for r in range(1,4):
+        results = []
+        for i in x:
+            X_exp = experiment_QC(i,r,'x')
+            Y_exp = experiment_QC(i,r,'y')
+            Z_exp = experiment_QC(i,r,'z')
+            results.append([X_exp, Y_exp, Z_exp])
+        plt.plot(x,np.array(results),label = 'Round: {}'.format(r))
+        plt.plot(x, np.array([analytic_evs(i, r) for i in x]), linestyle='dashed', label='analytic')
+        print('{} / 3'.format(r))
+    plt.show()
 
-def computed_fidelity(theta,computed_list):
-    expected_list = [expectation_value(theta,m) for m in ['x','y','z'] ]
-    return (abs(np.sum([(expected_list[i]-computed_list[i])**2 for i in range(3)])))
+def computed_fidelity(theta,X_exp,Y_exp,Z_exp):
+    computed_list = np.array([X_exp,Y_exp,Z_exp])
+    expected_list = np.array([2*np.cos(theta)**2*np.sin(theta)**2, 0, np.cos(theta)**4-np.sin(theta)**4])/p(theta)
+    return 0.5*(1+np.dot(computed_list, expected_list))
 
-def theoretical_fidelity(theta,n_rounds):
-    p_theta = np.cos(theta)**4 + np.sin(theta)**4
-    return 1 - (1-p_theta)**n_rounds
+def trace_distance(theta,X_exp,Y_exp,Z_exp):
+    computed_list = np.array([X_exp,Y_exp,Z_exp])
+    expected_list = np.array([2*np.cos(theta)**2*np.sin(theta)**2, 0, np.cos(theta)**4-np.sin(theta)**4])/p(theta)
+    return LA.norm(computed_list - expected_list)**2
 
+def analytic_fidelity(theta,n_rounds):
+    return (1 - (1-p(theta))**n_rounds*(1-np.cos(theta)**4/p(theta)))
 
-def post_processing_fidelity(): #do for angle pi/4
+def post_processing_fidelity():
+    results = []
+    x = range(1,9)
     data = np.genfromtxt('data_sim.csv', delimiter="\t",skip_header=1)
-    fidelity_rounds = [1-computed_fidelity(np.pi/4,data[96+i][2:]) for i in range(8)] #row with angle pi/4
-    print(fidelity_rounds)
-    #plt.plot(range(1,9),fidelity_rounds)
-    #plt.plot(range(1,9),[theoretical_fidelity(data[192][0],n) for n in range(1,9)])
-    #plt.show()
+    theta = np.pi/4 #Doing this for pi/4 (worst case) >>> starts @ 8*12'th row in data
 
-theory = [theoretical_fidelity(np.pi/4,n) for n in range(1,9)]
-print(theory)
-post_processing_fidelity()
+    for i in x:
+        X_exp = data[8*12 + (i - 1)][2]
+        Y_exp = data[8*12 + (i - 1)][3]
+        Z_exp = data[8*12 + (i - 1)][4]
+
+        comp = computed_fidelity(theta,X_exp,Y_exp,Z_exp)
+        results.append(comp)
+
+    plt.plot(x,results,label = "$\\frac{1}{2}(1 + \\langle \\psi |R\\psi \\rangle)$")
+    plt.plot(x,[analytic_fidelity(theta,n) for n in x], linestyle='dashed', label = '$Analytic, \ eq. \ x$')
+    plt.xlabel("$Number\ of\ Ancillae$")
+    plt.ylabel("$Fidelity$")
+    plt.legend()
+    plt.show()
+
+def post_processing_noise():
+    x = range(1,5)
+    data = np.genfromtxt('data_physical3.csv',delimiter="\t",skip_header=1)
+
+    for k,j in enumerate([8]):
+        results = []
+        theta = np.linspace(0,np.pi/2,5)[2] #theta = pi/4
+        for i in x:
+            X_exp = data[j + (i-1)][2]
+            Y_exp = data[j + (i-1)][3]
+            Z_exp = data[j + (i-1)][4]
+
+            comp = trace_distance(theta,X_exp,Y_exp,Z_exp)
+            results.append(comp)
+        plt.plot(x,results,label = '$\\theta = \\frac{\\pi}{4}$')
+    plt.xlabel("$Number of Rounds$")
+    plt.ylabel("Trace Distance")
+    plt.gca().xaxis.set_major_locator(mticker.MultipleLocator(1))
+    plt.legend()
+    plt.show()
+
+#post_processing_noise()
+#post_processing_fidelity()
+post_processing_angle()
