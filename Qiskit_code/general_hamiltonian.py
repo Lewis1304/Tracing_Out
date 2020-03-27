@@ -33,16 +33,19 @@ def u2(power): #creates U(2) via similarity transformation ODO^-1
         [0, 1, 0, 3],
         [1, 0, 1, 1],
         [0, 4, 0, 1]], dtype=float)
+    """
+    #linear_independence(A)
 
-    linear_independence(A)
-    O = granschmit(A)
-    U = O @ np.diag([1,1j,-1,-1j]) @ O.T.conj()
+    O = np.eye(4) + 2**(-power) * (np.random.rand(4,4) - 0.5)
+    W = granschmit(O)
+    U = W @ np.diag([1,1j,-1,-1j]) @ W.T.conj()
     """
     #Perturbs diagonal Hamiltonian
     lambdas = np.array([0,np.pi/2,np.pi,3*np.pi/2])
-    H = np.diag(lambdas) + 2**(-power) * (np.random.rand(4,4))
+    H = np.diag(lambdas) + 2**(-power) * (np.random.rand(4,4) -0.5)
     H = (H + H.conj().T) / 2
     U = expm(-1j*H)
+    """
     return U
 
 
@@ -87,7 +90,7 @@ def experiment_QC(N,p,t,sigma_1,sigma_2,power):
 
     circ.h(state_qubits) #initial input state
     """
-    for dummy in range(5):
+    for dummy in range(10):
         circ.u3(*(2*np.pi*np.random.rand(3)),state_qubits[0])
         circ.u3(*(2*np.pi*np.random.rand(3)),state_qubits[1])
     """
@@ -121,7 +124,7 @@ def experiment_QC(N,p,t,sigma_1,sigma_2,power):
     circ.ch(or_qubits[0],state_qubits)
 
     """
-    for dummy in range(5):
+    for dummy in range(10):
         circ.cu3(*(2*np.pi*np.random.rand(3)),or_qubits[0],state_qubits[0])
         circ.cu3(*(2*np.pi*np.random.rand(3)),or_qubits[0],state_qubits[1])
     """
@@ -150,7 +153,7 @@ def experiment_QC(N,p,t,sigma_1,sigma_2,power):
         #Scrambling gate
         circ.ch(or_qubits[j],state_qubits)
         """
-        for dummy in range(5):
+        for dummy in range(10):
             circ.cu3(*(2*np.pi*np.random.rand(3)),or_qubits[j],state_qubits[0])
             circ.cu3(*(2*np.pi*np.random.rand(3)),or_qubits[j],state_qubits[1])
         """
@@ -234,7 +237,7 @@ def experiment_QC(N,p,t,sigma_1,sigma_2,power):
 
     circ.measure(state_qubits,c)
 
-    shots = 8192
+    shots = 20000
     backend = Aer.get_backend('qasm_simulator')
 
     job = execute(circ, backend = backend, shots = shots)
@@ -291,13 +294,11 @@ t = 2 #Do t = 2 for now
 max_rounds = 5
 x = range(1,max_rounds+1)
 power = [1,2,3,4]
-groundstates = []
 
 for pow in power:
     results = []
     U = u2(pow)
     w,v = LA.eig(U)
-    average = np.mean(abs(w-np.round(w))) #working out the difference between perturbed U e.v. and non-perturbed.
 
     for p in x:
         a = []
@@ -318,10 +319,9 @@ for pow in power:
 
         results.append(computed_fidelity(a,b,T,U))
 
-        print('{} / {}'.format(p,max_rounds))
-        #print( np.real(np.round(computed_fidelity(a,b,T,U),4)) )
-
-    plt.plot(x,results,label = '$\\epsilon = 2^{},\\langle|\\lambda_B - \\lambda_A|\\rangle = {} $'.format(-pow,np.round(average,5)))
+    print('{} / {}'.format(pow,4))
+    print(np.round(U,3))
+    plt.plot(x,np.real(results),label = '$\\epsilon = 2^{}$'.format(-pow,))
 
 plt.plot(x,[analytic_fidelity(i,2) for i in x],label = 'analytic',color = 'k')
 plt.legend()
