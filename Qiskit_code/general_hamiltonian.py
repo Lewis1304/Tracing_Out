@@ -16,36 +16,10 @@ def granschmit(X): #Creates O out of linearly independent vectors (A)
     Q, R = np.linalg.qr(X)
     return Q
 
-def linear_independence(A): #checks whether A has dependent vectors
-    w,v = LA.eig(A)
-    for i in w:
-        if i == 0: print('DEPENDENT')
-
 def u2(power): #creates U(2) via similarity transformation ODO^-1
-
-    """
-    #Diagonal Unitary
-    U = np.diag([1,1j,-1,-1j])
-
-    #Constructing unitary for linearly independent vectors
-    A = np.array([
-        [1, 1, 0, 5],
-        [0, 1, 0, 3],
-        [1, 0, 1, 1],
-        [0, 4, 0, 1]], dtype=float)
-    """
-    #linear_independence(A)
-
     O = np.eye(4) + 2**(-power) * (np.random.rand(4,4) - 0.5)
     W = granschmit(O)
     U = W @ np.diag([1,1j,-1,-1j]) @ W.T.conj()
-    """
-    #Perturbs diagonal Hamiltonian
-    lambdas = np.array([0,np.pi/2,np.pi,3*np.pi/2])
-    H = np.diag(lambdas) + 2**(-power) * (np.random.rand(4,4) -0.5)
-    H = (H + H.conj().T) / 2
-    U = expm(-1j*H)
-    """
     return U
 
 
@@ -65,7 +39,6 @@ def Two_Controlled_Unitary(U):
 
 def qft_dagger(circ, n):
     """n-qubit QFTdagger the first n qubits in circ"""
-    # Don't forget the Swaps!
     for qubit in range(int(n/2)):
         circ.swap(qubit, n-qubit-1)
     for j in range(n,0,-1):
@@ -102,7 +75,7 @@ def experiment_QC(N,p,t,sigma_1,sigma_2,power):
     #Controlled U(2)
     for i,q in enumerate(register_qubits[:t][::-1]):
         for k in range(0,2**i):
-            circ.unitary(Single_Controlled_Unitary(U),[q,*state_qubits][::-1])
+            circ.unitary(Single_Controlled_Unitary(U),[q,state_qubits[0],state_qubits[1]][::-1])
 
     #QFT-dagger
     for qubit in range(int(t/2)):
@@ -134,7 +107,7 @@ def experiment_QC(N,p,t,sigma_1,sigma_2,power):
         #CCU
         for i,q in enumerate(register_qubits[t*j:t*(j+1)][::-1]):
             for k in range(0,2**i):
-                circ.unitary(Two_Controlled_Unitary(U),[q,or_qubits[j-1],*state_qubits][::-1])
+                circ.unitary(Two_Controlled_Unitary(U),[q,or_qubits[j-1],state_qubits[0],state_qubits[1]][::-1])
 
         #QFT-dagger
         for qubit in range(int(t/2)):
@@ -237,7 +210,7 @@ def experiment_QC(N,p,t,sigma_1,sigma_2,power):
 
     circ.measure(state_qubits,c)
 
-    shots = 20000
+    shots = 10000
     backend = Aer.get_backend('qasm_simulator')
 
     job = execute(circ, backend = backend, shots = shots)
@@ -265,7 +238,7 @@ def groundstate_representation(U):
     T = []
     for j,k in itertools.product([I,z,x,y],[I,z,x,y]):
 
-        experiment_result = gs.T.conj() @ np.kron(j,k) @ gs
+        experiment_result = gs @ np.kron(j,k) @ gs.conj().T
         if np.array_equal(j,I) and np.array_equal(k,I):
             continue
 
@@ -292,7 +265,7 @@ def computed_fidelity(a1,b1,T1,U):
 n = 2
 t = 2 #Do t = 2 for now
 max_rounds = 5
-x = range(1,max_rounds+1)
+num_iterations = range(1,max_rounds+1)
 power = [1,2,3,4]
 
 for pow in power:
@@ -300,7 +273,7 @@ for pow in power:
     U = u2(pow)
     w,v = LA.eig(U)
 
-    for p in x:
+    for p in num_iterations:
         a = []
         b = []
         T = []
@@ -321,9 +294,9 @@ for pow in power:
 
     print('{} / {}'.format(pow,4))
     print(np.round(U,3))
-    plt.plot(x,np.real(results),label = '$\\epsilon = 2^{}$'.format(-pow,))
+    plt.plot(num_iterations,np.real(results),label = '$\\epsilon = 2^{}$'.format(-pow,))
 
-plt.plot(x,[analytic_fidelity(i,2) for i in x],label = 'analytic',color = 'k')
+plt.plot(num_iterations,[analytic_fidelity(i,2) for i in num_iterations],label = 'analytic',color = 'k')
 plt.legend()
 #plt.savefig('General_Hamiltonian_Fidelity.pdf')
 plt.xlabel('Number of Rounds')
