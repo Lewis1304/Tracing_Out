@@ -12,13 +12,13 @@ import matplotlib.ticker as mticker
 
 #Creating U(2)
 
-def granschmit(X): #Creates O out of linearly independent vectors (A)
+def gramschmidt(X): #Creates O out of linearly independent vectors (A)
     Q, R = np.linalg.qr(X)
     return Q
 
 def u2(power): #creates U(2) via similarity transformation ODO^-1
     O = np.eye(4) + 2**(-power) * (np.random.rand(4,4) - 0.5)
-    W = granschmit(O)
+    W = gramschmidt(O)
     U = W @ np.diag([1,1j,-1,-1j]) @ W.T.conj()
     return U
 
